@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tienda Scooters - WhatsApp (demo)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    background: #d9d3ca;
+    display: flex;
+    justify-content: center;
+    padding: 24px 0;
+  }
+  #phone {
+    width: 400px;
+    height: 720px;
+    background: #e5ddd5;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+  #header {
+    background: #075e54;
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  #avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #128c7e;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold;
+  }
+  #header .name { font-size: 15px; font-weight: 600; }
+  #header .status { font-size: 12px; opacity: 0.8; }
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .bubble {
+    max-width: 78%;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+  }
+  .bot {
+    background: white;
+    align-self: flex-start;
+    border-top-left-radius: 0;
+  }
+  .user {
+    background: #dcf8c6;
+    align-self: flex-end;
+    border-top-right-radius: 0;
+  }
+  .system {
+    align-self: center;
+    background: #fef6cd;
+    color: #4a4a4a;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  #videoNotice {
+    display: none;
+    align-self: flex-start;
+    background: #fff3cd;
+    color: #7a5b00;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    max-width: 78%;
+  }
+  #inputBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #f0f0f0;
+    flex-shrink: 0;
+  }
+  #inputBar input[type=text] {
+    flex: 1;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 14px;
+    font-size: 14px;
+    outline: none;
+  }
+  #inputBar button, #inputBar label {
+    background: #075e54;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  #fileInput { display: none; }
+</style>
+</head>
+<body>
+
+<div id="phone">
+  <div id="header">
+    <div id="avatar">TS</div>
+    <div>
+      <div class="name">Tienda Scooters</div>
+      <div class="status" id="statusLine">en línea</div>
+    </div>
+  </div>
+  <div id="messages"></div>
+  <div id="inputBar">
+    <label for="fileInput" title="Adjuntar video">📎</label>
+    <input type="file" id="fileInput" accept="video/*">
+    <input type="text" id="textInput" placeholder="Escribe un mensaje">
+    <button id="sendBtn" title="Enviar">➤</button>
+  </div>
+</div>
+
+<script>
+// Generamos el session_id desde el arranque (no hasta el primer mensaje)
+// para poder subir un video antes de mandar cualquier texto.
+let sessionId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+
+function addBubble(text, cls) {
+  const messages = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'bubble ' + cls;
+  div.textContent = text;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function addSystem(text) {
+  const messages = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'system';
+  div.textContent = text;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function sendMessage(text) {
+  addBubble(text, 'user');
+  document.getElementById('statusLine').textContent = 'escribiendo...';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sessionId, message: text})
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    sessionId = data.session_id;
+
+    addBubble(data.reply, 'bot');
+
+    if (data.request_video) {
+      addSystem('El agente pidió un video — usa el clip 📎 para adjuntarlo');
+    }
+  } catch (err) {
+    addSystem('No se pudo enviar el mensaje (' + err.message + '). Intenta de nuevo.');
+  } finally {
+    document.getElementById('statusLine').textContent = 'en línea';
+  }
+}
+
+document.getElementById('sendBtn').addEventListener('click', () => {
+  const input = document.getElementById('textInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  sendMessage(text);
+});
+
+document.getElementById('textInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('sendBtn').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  addSystem('Subiendo video...');
+
+  const form = new FormData();
+  form.append('session_id', sessionId);
+  form.append('file', file);
+
+  try {
+    const res = await fetch('/api/upload', {method: 'POST', body: form});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await res.json();
+    sendMessage(`[video adjunto: ${file.name}]`);
+  } catch (err) {
+    addSystem('No se pudo subir el video (' + err.message + ')');
+  }
+});
+
+addBubble('Hola 👋 soy el asistente de Tienda Scooters. ¿En qué te ayudo hoy?', 'bot');
+</script>
+
+</body>
+</html>
