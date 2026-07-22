@@ -6,13 +6,17 @@ cotización) usando tool use.
 
 import base64
 import json
+import logging
 import os
+import traceback
 from datetime import datetime
 
 from anthropic import Anthropic
 
 from catalog import format_catalog_for_prompt
 from odoo_client import odoo
+
+logger = logging.getLogger("whatsapp_scooter_mvp")
 
 client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
@@ -377,6 +381,14 @@ def run_turn(session, user_message):
                 # Nunca dejamos que un error de Odoo/red tumbe el turno sin
                 # respuesta: se lo pasamos a Claude como error para que le
                 # explique al cliente qué pasó, en vez de quedarse "atorado".
+                # Pero SÍ dejamos rastro completo en los logs (Render >
+                # Logs) para poder diagnosticar qué falló de verdad.
+                logger.error(
+                    "Fallo en tool '%s' con input %s:\n%s",
+                    block.name,
+                    block.input,
+                    traceback.format_exc(),
+                )
                 result = {"error": f"{type(e).__name__}: {e}"}
             if block.name == "request_video":
                 ui_flags["request_video"] = True

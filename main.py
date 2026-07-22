@@ -11,6 +11,8 @@ Desplegar en Render:
 """
 
 import base64
+import logging
+import traceback
 import uuid
 from typing import Optional
 
@@ -19,6 +21,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from claude_agent import run_turn
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("whatsapp_scooter_mvp")
 
 app = FastAPI(title="WhatsApp scooter MVP")
 
@@ -54,6 +59,8 @@ def chat(payload: ChatIn):
     except Exception as e:
         # Red o Claude caídos, etc. Nunca dejamos la conversación sin
         # respuesta -- eso es lo que se sentía como "quedarse atorado".
+        # El detalle completo sí queda en los logs de Render para diagnosticar.
+        logger.error("Fallo en run_turn:\n%s", traceback.format_exc())
         reply = f"Ups, algo falló de mi lado ({type(e).__name__}). ¿Puedes intentar de nuevo?"
 
     return ChatOut(
