@@ -147,7 +147,28 @@ function addBubble(text, cls) {
   const messages = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = 'bubble ' + cls;
-  div.textContent = text;
+
+  // Convierte URLs sueltas en links clicables, como hace WhatsApp real.
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = urlRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      div.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+    }
+    const a = document.createElement('a');
+    a.href = match[0];
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = match[0];
+    a.style.color = '#075e54';
+    div.appendChild(a);
+    lastIndex = urlRegex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    div.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
 }

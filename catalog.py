@@ -40,6 +40,7 @@ MODEL_SPECS = {
         "autonomia_km": "15-20",
         "terreno": "pavimento liso, ciudad",
         "uso_ideal": "trayectos cortos en la ciudad, primer scooter, presupuesto ajustado",
+        "url": "https://instigo.mx/products/urbano-2-0",
     },
     "CITY": {
         "linea": "scooter",
@@ -47,6 +48,7 @@ MODEL_SPECS = {
         "autonomia_km": 30,
         "terreno": "pavimento liso, ciudad",
         "uso_ideal": "muy ligero y portátil (14 kg), ideal para combinar con transporte público",
+        "url": "https://instigo.mx/products/city",
     },
     "CITY GO": {
         "linea": "scooter",
@@ -54,6 +56,7 @@ MODEL_SPECS = {
         "autonomia_km": "45-50",
         "terreno": "pavimento urbano, con suspensión delantera y trasera",
         "uso_ideal": "trayectos urbanos más largos y cómodos, asiento tipo scooter clásico",
+        "url": "https://instigo.mx/products/city-go",
     },
     "SPORT 2.0": {
         "linea": "scooter",
@@ -61,6 +64,7 @@ MODEL_SPECS = {
         "autonomia_km": 40,
         "terreno": "pavimento y terracería ligera",
         "uso_ideal": "buen balance precio/desempeño para trayectos medios del día a día",
+        "url": "https://instigo.mx/products/sport-2-0",
     },
     "SPORT 2.0 PRO": {
         "linea": "scooter",
@@ -68,6 +72,7 @@ MODEL_SPECS = {
         "autonomia_km": 40,
         "terreno": "pavimento y terracería ligera",
         "uso_ideal": "como el Sport 2.0 pero con más potencia y respuesta para rutas más exigentes",
+        "url": "https://instigo.mx/products/sport-2-0-pro",
     },
     "RUSH": {
         "linea": "scooter",
@@ -75,6 +80,7 @@ MODEL_SPECS = {
         "autonomia_km": None,
         "terreno": "todo terreno (llantas 10\" off-road)",
         "uso_ideal": "combina ciudad y aventura, caminos irregulares, sin buscar velocidad extrema",
+        "url": "https://instigo.mx/products/instigo-rush",
     },
     "MONSTER 2.0": {
         "linea": "scooter",
@@ -82,6 +88,7 @@ MODEL_SPECS = {
         "autonomia_km": 60,
         "terreno": "todo terreno, doble motor",
         "uso_ideal": "distancias largas y terreno irregular, usuarios con algo de experiencia",
+        "url": "https://instigo.mx/products/monster-2-0",
     },
     "NIRAN": {
         "linea": "scooter",
@@ -89,6 +96,7 @@ MODEL_SPECS = {
         "autonomia_km": 65,
         "terreno": "todo terreno, doble motor",
         "uso_ideal": "trayectos largos priorizando la máxima autonomía y potencia",
+        "url": "https://instigo.mx/products/niran",
     },
     "EXTREME": {
         "linea": "scooter",
@@ -96,6 +104,7 @@ MODEL_SPECS = {
         "autonomia_km": 60,
         "terreno": "todo terreno, doble motor, frenos hidráulicos",
         "uso_ideal": "usuarios experimentados que buscan la máxima velocidad y potencia",
+        "url": "https://instigo.mx/products/extreme",
     },
     "VOLTIA": {
         "linea": "scooter",
@@ -103,6 +112,7 @@ MODEL_SPECS = {
         "autonomia_km": 50,
         "terreno": "ciudad, ruedas anchas de 14\" (más estable, estilo motobici)",
         "uso_ideal": "quien busca algo más estable tipo moto/bici que un scooter de pie",
+        "url": "https://instigo.mx/products/voltia",
     },
     # TODO: agregar modelos de bicicletas eléctricas y bicimotos aquí
     # cuando se definan -- no requiere ningún otro cambio de código.
@@ -136,6 +146,7 @@ def format_catalog_for_prompt() -> str:
         autonomia_txt = f"{autonomia} km" if autonomia else "N/D"
         lines.append(
             f"- {name}: hasta {spec['velocidad_kmh']} km/h, autonomía {autonomia_txt}, "
-            f"terreno: {spec['terreno']}. Ideal para: {spec['uso_ideal']}."
+            f"terreno: {spec['terreno']}. Ideal para: {spec['uso_ideal']}. "
+            f"Link de compra: {spec.get('url', 'N/D')}"
         )
     return "\n".join(lines)
