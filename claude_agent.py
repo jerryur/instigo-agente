@@ -39,8 +39,10 @@ electrónica/pantalla, estructura/plegado, u otro) y si el cliente puede seguir 
 el scooter o quedó inservible — esto lo puedes ir sacando con 1-2 preguntas naturales \
 dentro de la conversación, no como formulario. Espera a que el cliente confirme que \
 ya adjuntó el video si se lo pediste (verás un mensaje tipo "[video adjunto: ...]") \
-antes de crear el ticket. Cuando tengas todo, crea el ticket con \
-create_helpdesk_ticket (team_name: "Refacciones y Garantías" o "Facturación").
+antes de crear el ticket -- SALVO que el cliente decline mandarlo (ver regla 1d). \
+Cuando tengas todo, crea el ticket con create_helpdesk_ticket (team_name: \
+"Refacciones y Garantías" o "Facturación"), indicando en video_proporcionado si el \
+cliente sí adjuntó el video, lo rechazó, o nunca se le pidió.
 1c. REGLA DURA sobre el video, sin excepciones: CADA VEZ que llames a request_video \
 -- ya sea la primera vez o como recordatorio si el cliente aún no lo ha mandado -- tu \
 mensaje de texto en ESE MISMO turno debe seguir esta estructura fija, sin importar qué \
@@ -67,6 +69,15 @@ o cualquier variante sin la pregunta explícita de qué grabar -- esas frases pu
 como cierre amable DESPUÉS de la pregunta explícita, nunca reemplazándola. Esto aplica \
 igual si es un recordatorio porque el cliente no ha respondido o dijo algo como "nada": \
 vuelve a poner la pregunta completa, no solo un recordatorio genérico.
+1d. Si el cliente dice explícitamente que no quiere o no puede subir el video (ej. \
+"no puedo", "no tengo cómo grabarlo", "no quiero", "ahorita no", "mejor no"), NO \
+insistas más de una vez. Acepta seguir sin el video y dile, en tus propias palabras \
+pero sin omitir la idea, algo equivalente a: "sin problema, seguimos sin el video -- \
+solo ten en cuenta que sin él el equipo de Refacciones y Garantías podría tardarse más \
+en dar un diagnóstico, o podrían contactarte de nuevo para pedirte más información". \
+Después de decir esto, continúa el flujo normal y crea el ticket con \
+video_proporcionado: "rechazado por el cliente" en cuanto tengas el resto de los datos \
+-- no lo dejes esperando indefinidamente.
 2. Información de producto: usa search_products antes de responder precio, nunca \
 inventes datos. No menciones la existencia/stock (qty_available) al cliente por \
 iniciativa propia — es un dato interno. Solo úsalo para revisar, en silencio, que \
@@ -188,6 +199,11 @@ TOOLS = [
                     "type": "boolean",
                     "description": "true si el cliente puede seguir usando el scooter pese a la falla",
                 },
+                "video_proporcionado": {
+                    "type": "string",
+                    "description": "Estado del video del problema -- ver regla 1d",
+                    "enum": ["sí, adjunto", "rechazado por el cliente", "no se pidió"],
+                },
             },
             "required": [
                 "team_name",
@@ -302,6 +318,7 @@ def run_tool(tool_name, tool_input, session):
         folio_orden = vals.pop("folio_orden", None)
         categoria_falla = vals.pop("categoria_falla", None)
         scooter_utilizable = vals.pop("scooter_utilizable", None)
+        video_proporcionado = vals.pop("video_proporcionado", None)
 
         if scooter_utilizable is None:
             utilizable_txt = "no especificado"
@@ -316,7 +333,8 @@ def run_tool(tool_name, tool_input, session):
             f"Canal de compra: {canal_compra or 'No especificado'}\n"
             f"Folio/orden: {folio_orden or 'no proporcionado'}\n"
             f"Categoría de falla: {categoria_falla or 'N/A'}\n"
-            f"¿Scooter utilizable?: {utilizable_txt}\n\n"
+            f"¿Scooter utilizable?: {utilizable_txt}\n"
+            f"Video del problema: {video_proporcionado or 'no se pidió'}\n\n"
             f"{vals['description']}\n\n"
             "(la transcripción completa de la conversación queda adjunta como archivo .txt)"
         )
