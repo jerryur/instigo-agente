@@ -359,54 +359,72 @@ def run_turn(session, user_message):
     `session` trae: history, ui_flags, pending_video."""
     history = session["history"]
     ui_flags = session["ui_flags"]
+    # Guardamos el largo original para poder revertir el historial completo
+    # si algo falla -- si dejamos un mensaje "user" a medias (sin su
+    # respuesta "assistant"), el siguiente turno agregaría OTRO "user"
+    # encima, rompiendo la alternancia estricta de roles que exige la API
+    # de Claude, y la sesión quedaría inservible para siempre (todo turno
+    # futuro fallaría con BadRequestError, sin forma de recuperarse sola).
+    original_len = len(history)
     history.append({"role": "user", "content": user_message})
     ui_flags["request_video"] = False
 
     reply = "Se me complicó procesar eso, ¿puedes reformular tu mensaje?"
 
-    for _ in range(6):  # tope de seguridad contra loops infinitos de tools
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            tools=TOOLS,
-            messages=history,
-        )
-        history.append({"role": "assistant", "content": response.content})
-
-        if response.stop_reason != "tool_use":
-            reply = "".join(b.text for b in response.content if b.type == "text")
-            break
-
-        tool_results = []
-        for block in response.content:
-            if block.type != "tool_use":
-                continue
-            try:
-                result = run_tool(block.name, block.input, session)
-            except Exception as e:
-                # Nunca dejamos que un error de Odoo/red tumbe el turno sin
-                # respuesta: se lo pasamos a Claude como error para que le
-                # explique al cliente qué pasó, en vez de quedarse "atorado".
-                # Pero SÍ dejamos rastro completo en los logs (Render >
-                # Logs) para poder diagnosticar qué falló de verdad.
-                logger.error(
-                    "Fallo en tool '%s' con input %s:\n%s",
-                    block.name,
-                    block.input,
-                    traceback.format_exc(),
-                )
-                result = {"error": f"{type(e).__name__}: {e}"}
-            if block.name == "request_video":
-                ui_flags["request_video"] = True
-            tool_results.append(
-                {
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": json.dumps(result, ensure_ascii=False),
-                }
+    try:
+        for _ in range(6):  # tope de seguridad contra loops infinitos de tools
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=1024,
+                system=SYSTEM_PROMPT,
+                tools=TOOLS,
+                messages=history,
             )
-        history.append({"role": "user", "content": tool_results})
+            history.append({"role": "assistant", "content": response.content})
+
+            if response.stop_reason != "tool_use":
+                reply = "".join(b.text for b in response.content if b.type == "text")
+                break
+
+            tool_results = []
+            for block in response.content:
+                if block.type != "tool_use":
+                    continue
+                try:
+                    result = run_tool(block.name, block.input, session)
+                except Exception as e:
+                    # Nunca dejamos que un error de Odoo/red tumbe el turno sin
+                    # respuesta: se lo pasamos a Claude como error para que le
+                    # explique al cliente qué pasó, en vez de quedarse "atorado".
+                    # Pero SÍ dejamos rastro completo en los logs (Render >
+                    # Logs) para poder diagnosticar qué falló de verdad.
+                    logger.error(
+                        "Fallo en tool '%s' con input %s:\n%s",
+                        block.name,
+                        block.input,
+                        traceback.format_exc(),
+                    )
+                    result = {"error": f"{type(e).__name__}: {e}"}
+                if block.name == "request_video":
+                    ui_flags["request_video"] = True
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": json.dumps(result, ensure_ascii=False),
+                    }
+                )
+            history.append({"role": "user", "content": tool_results})
+    except Exception:
+        # Si falla la llamada a Claude (red, error de la API, contenido
+        # inválido, etc.) en cualquier punto del loop, NO dejamos el
+        # historial a medias -- lo regresamos exactamente al estado que
+        # tenía antes de este turno. Así el siguiente mensaje del cliente
+        # empieza limpio en vez de heredar una alternancia de roles rota
+        # que tumbaría TODOS los turnos futuros de esta sesión.
+        logger.error("Fallo llamando a Claude, revirtiendo historial:\n%s", traceback.format_exc())
+        del history[original_len:]
+        return "Ups, algo falló de mi lado. ¿Puedes intentar de nuevo?"
 
     # Se llama siempre al final del turno (no solo cuando se creó el
     # ticket/oportunidad) para que el archivo adjunto refleje la
