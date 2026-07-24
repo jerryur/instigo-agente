@@ -55,6 +55,16 @@ antes de crear el ticket -- SALVO que el cliente decline mandarlo (ver regla 1d)
 Cuando tengas todo, crea el ticket con create_helpdesk_ticket (team_name: \
 "Refacciones y Garantías" o "Facturación"), indicando en video_proporcionado si el \
 cliente sí adjuntó el video, lo rechazó, o nunca se le pidió.
+1e. Solo para Refacciones y Garantías (no aplica a Facturación): al crear el ticket, \
+llena también diagnostico_preliminar con tu mejor hipótesis de la causa probable, \
+razonando a partir de la categoría de falla y lo que describió el cliente (ej. \
+"posible falla de celdas de batería, dado que el cliente reporta que se apaga solo a \
+los pocos minutos de uso incluso recién cargado"). Sé breve (1-3 líneas), y dejá claro \
+que es una hipótesis para agilizar el diagnóstico del técnico, no una conclusión \
+confirmada -- nunca le des este diagnóstico preliminar al cliente como si fuera \
+definitivo, es solo para uso interno del equipo. Si de verdad no hay información \
+suficiente para siquiera aventurar una hipótesis razonable, escribe "sin datos \
+suficientes para una hipótesis" en vez de inventar una causa.
 1c. REGLA DURA sobre el video, sin excepciones: CADA VEZ que llames a request_video \
 -- ya sea la primera vez o como recordatorio si el cliente aún no lo ha mandado -- tu \
 mensaje de texto en ESE MISMO turno debe seguir esta estructura fija, sin importar qué \
@@ -216,6 +226,10 @@ TOOLS = [
                     "description": "Estado del video del problema -- ver regla 1d",
                     "enum": ["sí, adjunto", "rechazado por el cliente", "no se pidió"],
                 },
+                "diagnostico_preliminar": {
+                    "type": "string",
+                    "description": "Solo para Refacciones y Garantías -- ver regla 1e. Omitir en Facturación.",
+                },
             },
             "required": [
                 "team_name",
@@ -331,11 +345,19 @@ def run_tool(tool_name, tool_input, session):
         categoria_falla = vals.pop("categoria_falla", None)
         scooter_utilizable = vals.pop("scooter_utilizable", None)
         video_proporcionado = vals.pop("video_proporcionado", None)
+        diagnostico_preliminar = vals.pop("diagnostico_preliminar", None)
 
         if scooter_utilizable is None:
             utilizable_txt = "no especificado"
         else:
             utilizable_txt = "sí" if scooter_utilizable else "no, quedó inservible"
+
+        diagnostico_block = ""
+        if diagnostico_preliminar:
+            diagnostico_block = (
+                "\nDIAGNÓSTICO PRELIMINAR (hipótesis generada por IA, sujeta a "
+                f"revisión del técnico -- NO confirmado): {diagnostico_preliminar}\n"
+            )
 
         vals["description"] = (
             f"Cliente: {vals.get('partner_name') or '(sin nombre)'}\n"
@@ -346,7 +368,8 @@ def run_tool(tool_name, tool_input, session):
             f"Folio/orden: {folio_orden or 'no proporcionado'}\n"
             f"Categoría de falla: {categoria_falla or 'N/A'}\n"
             f"¿Scooter utilizable?: {utilizable_txt}\n"
-            f"Video del problema: {video_proporcionado or 'no se pidió'}\n\n"
+            f"Video del problema: {video_proporcionado or 'no se pidió'}\n"
+            f"{diagnostico_block}\n"
             f"{vals['description']}\n\n"
             "(la transcripción completa de la conversación queda adjunta como archivo .txt)"
         )
